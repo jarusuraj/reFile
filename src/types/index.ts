@@ -18,7 +18,7 @@ export const SUPPORTED_EXTENSIONS: SupportedExt[] = ['pdf', 'docx', 'csv', 'tsv'
 export const MAX_FILE_SIZE = 1024 * 1024; // 1MB
 
 export const LANGUAGE_METADATA: Record<Language, LanguageMeta> = {
-  English: { flag: '🇬🇧' },
-  Nepali:  { flag: '🇳🇵' },
-  Tamang:  { flag: '🏔️' },
+  English: { flag: 'EN' },
+  Nepali:  { flag: 'NP' },
+  Tamang:  { flag: 'TG' },
 };

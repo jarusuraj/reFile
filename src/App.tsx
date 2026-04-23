@@ -1,4 +1,4 @@
-import { useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useDropzone } from 'react-dropzone';
 import { toast } from 'sonner';
@@ -6,7 +6,7 @@ import { useAppStore } from './store';
 import { 
   FileText, UploadCloud, ArrowRightLeft, Languages, 
   Download, Loader2, CheckCircle2, FileJson, 
-  FileSpreadsheet, X, FileCheck, Zap, Shield
+  FileSpreadsheet, X, FileCheck, Zap, Shield, Moon, Sun
 } from 'lucide-react';
 import { type SupportedExt, MAX_FILE_SIZE, type Language, LANGUAGE_METADATA } from './types';
 import { getFileExtension, formatFileSize } from './utils/formatters';
@@ -25,7 +25,42 @@ export default function App() {
     setProgress, setTranslatedUrl, reset
   } = useAppStore();
 
-  const progressInterval = useRef<NodeJS.Timeout | null>(null);
+  const progressInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [showSplash, setShowSplash] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setShowSplash(false), 2000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('theme');
+      if (stored === 'dark' || stored === 'light') return stored;
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    return 'dark';
+  });
+
+  const toggleTheme = useCallback(() => {
+    const newTheme = theme === 'dark' ? 'light' : 'dark';
+    if (!document.startViewTransition) {
+      setTheme(newTheme);
+      return;
+    }
+    document.startViewTransition(() => {
+      setTheme(newTheme);
+    });
+  }, [theme]);
+
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    localStorage.setItem('theme', theme);
+  }, [theme]);
 
   useEffect(() => {
     // Clean up interval on unmount
@@ -81,10 +116,9 @@ export default function App() {
     
     // Simulate translation progress
     progressInterval.current = setInterval(() => {
-      setProgress((prev) => {
-        if (prev >= 95) return prev;
-        return prev + Math.random() * 15;
-      });
+      const currentProgress = useAppStore.getState().progress;
+      if (currentProgress >= 95) return;
+      setProgress(Math.min(95, currentProgress + Math.random() * 15));
     }, 400);
 
     try {
@@ -117,14 +151,40 @@ export default function App() {
   const FileIcon = file ? EXTENSION_ICONS[file.ext] : FileText;
 
   return (
-    <div className="min-h-screen dark bg-background text-foreground flex flex-col font-sans">
-      {/* Background ambient light */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
-        <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-primary/10 blur-[120px]" />
-        <div className="absolute bottom-[-20%] right-[-10%] w-[40%] h-[40%] rounded-full bg-blue-500/10 blur-[120px]" />
-      </div>
+    <div className={`min-h-screen ${theme} bg-background text-foreground flex flex-col font-sans transition-colors duration-300`}>
+      <AnimatePresence>
+        {showSplash && (
+          <motion.div 
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0, scale: 1.05 }}
+            transition={{ duration: 0.6, ease: [0.77, 0, 0.175, 1] }}
+            className="fixed inset-0 z-[9999] bg-background flex flex-col items-center justify-center pointer-events-none"
+          >
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              className="flex items-center gap-4"
+            >
+              <div className="w-16 h-16 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center shadow-2xl">
+                <Languages size={32} />
+              </div>
+              <div>
+                <h1 className="text-4xl font-bold tracking-tight">reImagine</h1>
+                <p className="text-muted-foreground uppercase font-semibold tracking-wider text-sm">File Translator</p>
+              </div>
+            </motion.div>
+            <motion.div 
+              initial={{ width: 0 }}
+              animate={{ width: 200 }}
+              transition={{ duration: 1.5, ease: "easeInOut", delay: 0.5 }}
+              className="h-1 bg-primary rounded-full mt-12"
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      <header className="sticky top-0 z-50 glass border-b border-border/50 px-6 py-4">
+      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border/50 px-6 py-4">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
@@ -135,9 +195,14 @@ export default function App() {
               <p className="text-xs text-muted-foreground uppercase font-semibold tracking-wider">File Translator</p>
             </div>
           </div>
-          <div className="hidden sm:flex items-center gap-3">
-            <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold border border-primary/20">Track 02</span>
-            <span className="px-3 py-1 rounded-full bg-secondary text-secondary-foreground text-xs font-semibold">TMT 2026</span>
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={toggleTheme}
+              className="w-9 h-9 rounded-full bg-secondary text-secondary-foreground flex items-center justify-center hover:bg-secondary/80 transition-colors"
+              aria-label="Toggle theme"
+            >
+              {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+            </button>
           </div>
         </div>
       </header>
@@ -158,12 +223,11 @@ export default function App() {
                   <button
                     key={`source-${lang}`}
                     onClick={() => setSourceLang(lang)}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
-                      sourceLang === lang ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
+                    className={`flex-1 flex items-center justify-center py-2 px-2 rounded-lg text-sm font-semibold transition-all ${
+                      sourceLang === lang ? 'bg-background shadow-sm text-primary' : 'text-muted-foreground hover:text-foreground'
                     }`}
                   >
-                    <span>{LANGUAGE_METADATA[lang].flag}</span>
-                    <span className="hidden sm:inline">{lang}</span>
+                    {lang}
                   </button>
                 ))}
               </div>
@@ -185,12 +249,11 @@ export default function App() {
                   <button
                     key={`target-${lang}`}
                     onClick={() => setTargetLang(lang)}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
-                      targetLang === lang ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
+                    className={`flex-1 flex items-center justify-center py-2 px-2 rounded-lg text-sm font-semibold transition-all ${
+                      targetLang === lang ? 'bg-background shadow-sm text-primary' : 'text-muted-foreground hover:text-foreground'
                     }`}
                   >
-                    <span>{LANGUAGE_METADATA[lang].flag}</span>
-                    <span className="hidden sm:inline">{lang}</span>
+                    {lang}
                   </button>
                 ))}
               </div>
@@ -214,19 +277,21 @@ export default function App() {
               >
                 <div
                   {...getRootProps()}
-                  className={`glass border-2 border-dashed rounded-3xl p-12 text-center cursor-pointer transition-colors ${
-                    isDragActive ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50 hover:bg-secondary/20'
+                  className={`glass border-2 border-dashed rounded-3xl p-16 text-center cursor-pointer transition-colors ${
+                    isDragActive ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/30 hover:bg-secondary/10'
                   }`}
                 >
                   <input {...getInputProps()} />
-                  <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-secondary flex items-center justify-center text-muted-foreground">
-                    <UploadCloud size={32} />
-                  </div>
-                  <h3 className="text-xl font-semibold mb-2">Drag & Drop your document here</h3>
-                  <p className="text-muted-foreground mb-6">or click to browse from your computer</p>
-                  <div className="flex items-center justify-center gap-2">
+                  <motion.div 
+                    className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-secondary flex items-center justify-center text-primary shadow-lg"
+                  >
+                    <UploadCloud size={40} />
+                  </motion.div>
+                  <h3 className="text-2xl font-bold mb-3">Drag & Drop your document</h3>
+                  <p className="text-muted-foreground mb-8">or click to browse from your computer</p>
+                  <div className="flex items-center justify-center gap-3">
                     {['.PDF', '.DOCX', '.CSV', '.TSV'].map(ext => (
-                      <span key={ext} className="px-3 py-1 rounded-full bg-secondary text-xs font-mono font-medium">{ext}</span>
+                      <span key={ext} className="px-4 py-1.5 rounded-full bg-secondary text-xs font-mono font-bold tracking-wider">{ext}</span>
                     ))}
                   </div>
                 </div>
@@ -299,7 +364,7 @@ export default function App() {
                             Processing...
                           </span>
                           <span>{Math.round(progress)}%</span>
-                        </div>
+                        </div>  
                         <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
                           <motion.div 
                             className="h-full bg-primary"

@@ -35,48 +35,50 @@
 
 @layer base {
   :root {
-    --background: 220 20% 97%;
-    --foreground: 222 47% 11%;
-    --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    /* Google Material Light Mode */
+    --background: 0 0% 100%;       /* #ffffff */
+    --foreground: 210 3% 13%;      /* #202124 */
+    --card: 210 14% 95%;           /* #f1f3f4 */
+    --card-foreground: 210 3% 13%; /* #202124 */
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
-    --primary: 222 47% 11%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222 47% 11%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222 47% 11%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222 47% 11%;
+    --popover-foreground: 210 3% 13%;
+    --primary: 214 82% 51%;        /* #1a73e8 Google Blue */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 100%;        /* White buttons */
+    --secondary-foreground: 214 82% 51%;
+    --muted: 210 14% 95%;
+    --muted-foreground: 210 3% 37%; /* #5f6368 */
+    --accent: 214 82% 96%;         /* Very light blue */
+    --accent-foreground: 214 82% 51%;
+    --destructive: 0 72% 51%;      /* #ea4335 */
+    --destructive-foreground: 0 0% 100%;
+    --border: 210 9% 87%;          /* #dadce0 */
+    --input: 210 9% 87%;
+    --ring: 214 82% 51%;
     --radius: 0.75rem;
   }
 
   .dark {
-    --background: 224 71% 4%;
-    --foreground: 213 31% 91%;
-    --card: 222 47% 11%;
-    --card-foreground: 213 31% 91%;
-    --popover: 224 71% 4%;
-    --popover-foreground: 215 20.2% 65.1%;
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 1.2%;
-    --secondary: 222 47% 11%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 223 47% 11%;
-    --muted-foreground: 215.4 16.3% 56.9%;
-    --accent: 216 34% 17%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 63% 31%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 216 34% 17%;
-    --input: 216 34% 17%;
-    --ring: 212.7 26.8% 83.9%;
+    /* Google Material Dark Mode */
+    --background: 210 3% 13%;      /* #202124 */
+    --foreground: 210 11% 91%;     /* #e8eaed */
+    --card: 210 3% 19%;            /* #303134 */
+    --card-foreground: 210 11% 91%;
+    --popover: 210 3% 19%;
+    --popover-foreground: 210 11% 91%;
+    --primary: 217 89% 76%;        /* #8ab4f8 Google Dark Blue */
+    --primary-foreground: 210 3% 13%;
+    --secondary: 210 3% 25%;       /* #3c4043 */
+    --secondary-foreground: 217 89% 76%;
+    --muted: 210 3% 25%;
+    --muted-foreground: 210 6% 60%; /* #9aa0a6 */
+    --accent: 210 3% 25%;
+    --accent-foreground: 217 89% 76%;
+    --destructive: 0 54% 63%;      /* #f28b82 */
+    --destructive-foreground: 0 0% 100%;
+    --border: 210 3% 37%;          /* #5f6368 */
+    --input: 210 3% 37%;
+    --ring: 217 89% 76%;
   }
 }
 
@@ -86,11 +88,61 @@
   }
   body {
     @apply bg-background text-foreground antialiased selection:bg-primary/20 selection:text-primary;
-    background-image: radial-gradient(circle at top center, rgba(255, 255, 255, 0.03) 0%, transparent 100%);
   }
   
-  /* Glassmorphism utility */
+  /* Glassmorphism utility - cleaner version */
   .glass {
-    @apply bg-background/60 backdrop-blur-xl border border-white/10 shadow-xl;
+    @apply bg-card border shadow-sm;
+  }
+}
+
+/* ═══════════════════════════════════════════
+   THEME TRANSITION - "CLOTH SNATCHING" WIPE
+   ═══════════════════════════════════════════ */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+::view-transition-old(root) {
+  z-index: 1;
+}
+::view-transition-new(root) {
+  z-index: 9999;
+}
+
+/* Wiping from Left to Right (when switching to dark mode) */
+.dark::view-transition-new(root) {
+  animation: snatch-dark 1.2s cubic-bezier(0.77, 0, 0.175, 1) forwards;
+  box-shadow: -20px 0 50px rgba(0,0,0,0.5);
+}
+
+/* Wiping from Right to Left (when switching to light mode) */
+:root:not(.dark)::view-transition-new(root) {
+  animation: snatch-light 1.2s cubic-bezier(0.77, 0, 0.175, 1) forwards;
+  box-shadow: 20px 0 50px rgba(0,0,0,0.2);
+}
+
+@keyframes snatch-dark {
+  0% {
+    clip-path: polygon(0 0, 0 0, 0 100%, 0 100%);
+  }
+  30% {
+    clip-path: polygon(0 0, 40% 40%, 40% 60%, 0 100%);
+  }
+  100% {
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+  }
+}
+
+@keyframes snatch-light {
+  0% {
+    clip-path: polygon(100% 0, 100% 0, 100% 100%, 100% 100%);
+  }
+  30% {
+    clip-path: polygon(100% 0, 60% 40%, 60% 60%, 100% 100%);
+  }
+  100% {
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
   }
 }
