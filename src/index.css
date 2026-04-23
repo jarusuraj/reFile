@@ -113,36 +113,19 @@
 
 /* Wiping from Left to Right (when switching to dark mode) */
 .dark::view-transition-new(root) {
-  animation: snatch-dark 1.2s cubic-bezier(0.77, 0, 0.175, 1) forwards;
-  box-shadow: -20px 0 50px rgba(0,0,0,0.5);
+  animation: expand-circle 0.8s cubic-bezier(0.65, 0, 0.35, 1) forwards;
 }
 
 /* Wiping from Right to Left (when switching to light mode) */
 :root:not(.dark)::view-transition-new(root) {
-  animation: snatch-light 1.2s cubic-bezier(0.77, 0, 0.175, 1) forwards;
-  box-shadow: 20px 0 50px rgba(0,0,0,0.2);
+  animation: expand-circle 0.8s cubic-bezier(0.65, 0, 0.35, 1) forwards;
 }
 
-@keyframes snatch-dark {
+@keyframes expand-circle {
   0% {
-    clip-path: polygon(0 0, 0 0, 0 100%, 0 100%);
-  }
-  30% {
-    clip-path: polygon(0 0, 40% 40%, 40% 60%, 0 100%);
+    clip-path: circle(0% at 85% 5%);
   }
   100% {
-    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
-  }
-}
-
-@keyframes snatch-light {
-  0% {
-    clip-path: polygon(100% 0, 100% 0, 100% 100%, 100% 100%);
-  }
-  30% {
-    clip-path: polygon(100% 0, 60% 40%, 60% 60%, 100% 100%);
-  }
-  100% {
-    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+    clip-path: circle(150% at 85% 5%);
   }
 }

@@ -20,7 +20,7 @@ interface AppState {
 }
 
 export const useAppStore = create<AppState>((set) => ({
-  file: null,
+  file: null, 
   status: 'idle',
   sourceLang: 'English',
   targetLang: 'Nepali',
