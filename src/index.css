@@ -1,0 +1,157 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* ═══════════════════════════════════════════
+   DESIGN SYSTEM — Light & Dark
+   ═══════════════════════════════════════════ */
+
+:root {
+  color-scheme: light dark;
+
+  /* ── Fonts ── */
+  --f-display: 'Outfit', system-ui, sans-serif;
+  --f-body:    'Inter', system-ui, sans-serif;
+  --f-mono:    'JetBrains Mono', ui-monospace, monospace;
+
+  /* ── Radii ── */
+  --r-xs: 6px;  --r-sm: 8px;  --r-md: 12px;
+  --r-lg: 16px; --r-xl: 24px; --r-full: 9999px;
+
+  /* ── Timing ── */
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur: 0.25s;
+}
+
+/* ── DARK (default) ── */
+[data-theme="dark"], :root {
+  --bg-0: #06090f;
+  --bg-1: #0c1220;
+  --bg-2: #151d2e;
+  --bg-3: #1e293b;
+  --bg-elevated: rgba(21, 29, 46, 0.75);
+
+  --accent: #4ecdc4;
+  --accent-hover: #6ee7de;
+  --accent-dim: rgba(78,205,196,0.10);
+  --accent-glow: rgba(78,205,196,0.20);
+
+  --blue: #60a5fa;   --blue-dim: rgba(96,165,250,0.10);
+  --purple: #a78bfa; --rose: #fb7185;
+  --amber: #fbbf24;  --emerald: #34d399;
+
+  --text-1: #f1f5f9;
+  --text-2: #94a3b8;
+  --text-3: #64748b;
+  --text-inv: #0f172a;
+
+  --border: rgba(148,163,184,0.10);
+  --border-strong: rgba(148,163,184,0.18);
+  --ring: var(--accent);
+
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.4);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.35);
+  --shadow-lg: 0 10px 40px rgba(0,0,0,0.45);
+  --shadow-glow: 0 0 60px rgba(78,205,196,0.08);
+
+  --glass: rgba(15,23,42,0.60);
+  --glass-border: rgba(148,163,184,0.08);
+}
+
+/* ── LIGHT ── */
+[data-theme="light"] {
+  --bg-0: #f8fafc;
+  --bg-1: #ffffff;
+  --bg-2: #f1f5f9;
+  --bg-3: #e2e8f0;
+  --bg-elevated: rgba(255,255,255,0.80);
+
+  --accent: #0d9488;
+  --accent-hover: #0f766e;
+  --accent-dim: rgba(13,148,136,0.08);
+  --accent-glow: rgba(13,148,136,0.12);
+
+  --blue: #3b82f6;   --blue-dim: rgba(59,130,246,0.08);
+  --purple: #8b5cf6; --rose: #e11d48;
+  --amber: #d97706;  --emerald: #059669;
+
+  --text-1: #0f172a;
+  --text-2: #475569;
+  --text-3: #94a3b8;
+  --text-inv: #f8fafc;
+
+  --border: rgba(15,23,42,0.08);
+  --border-strong: rgba(15,23,42,0.14);
+  --ring: var(--accent);
+
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.08);
+  --shadow-lg: 0 10px 40px rgba(0,0,0,0.10);
+  --shadow-glow: 0 0 60px rgba(13,148,136,0.06);
+
+  --glass: rgba(255,255,255,0.70);
+  --glass-border: rgba(15,23,42,0.06);
+}
+
+/* ═══════════════════════════════════════════
+   RESET & GLOBAL
+   ═══════════════════════════════════════════ */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: var(--f-body);
+  background: var(--bg-0);
+  color: var(--text-1);
+  line-height: 1.6;
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+
+#root { min-height: 100vh; display: flex; flex-direction: column; }
+
+h1,h2,h3,h4,h5,h6 {
+  font-family: var(--f-display);
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  line-height: 1.25;
+  color: var(--text-1);
+}
+
+a { color: var(--accent); text-decoration: none; transition: color var(--dur); }
+a:hover { color: var(--accent-hover); }
+
+button {
+  font-family: var(--f-body);
+  cursor: pointer;
+  border: none;
+  outline: none;
+  font-size: inherit;
+  background: none;
+  color: inherit;
+}
+
+::selection { background: var(--accent); color: var(--text-inv); }
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-3); }
+
+:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+
+/* Smooth theme transition on everything */
+*, *::before, *::after {
+  transition-property: background-color, border-color, box-shadow, color;
+  transition-duration: 0.2s;
+  transition-timing-function: var(--ease);
+}
+/* Exclude motion elements from global transition */
+[style*="transform"], canvas, video, svg { transition: none; }
