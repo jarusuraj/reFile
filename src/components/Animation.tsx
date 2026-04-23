@@ -1,113 +1,117 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { useGLTF, useAnimations } from '@react-three/drei';
+import { motion, AnimatePresence } from 'motion/react';
 import * as THREE from 'three';
 
-const MODEL_URL = 'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/models/gltf/RobotExpressive/RobotExpressive.glb';
+const RING_COUNT = 30;
+const TUNNEL_LENGTH = 150;
 
-// Preload the character
-useGLTF.preload(MODEL_URL);
-
-const RobotCharacter = ({ onProgress }: { onProgress: (p: number) => void }) => {
-  const group = useRef<THREE.Group>(null);
+const Rings = () => {
+  const ringsRef = useRef<THREE.Group>(null);
   
-  // Load the Robot model
-  const { scene, animations } = useGLTF(MODEL_URL);
-  const { actions } = useAnimations(animations, group);
-
-  // Animation parameters
-  const startX = 6;
-  const endX = -8;
-  const duration = 2.5;
-  const timeRef = useRef(0);
-
-  useEffect(() => {
-    // Play the Walking animation when the component mounts
-    if (actions && actions['Walking']) {
-      actions['Walking'].reset().fadeIn(0.2).play();
-      // Speed up the walk cycle slightly so it matches the dragging speed
-      actions['Walking'].timeScale = 1.5;
+  const ringData = useMemo(() => {
+    const data = [];
+    for (let i = 0; i < RING_COUNT; i++) {
+      data.push({
+        z: -(i * (TUNNEL_LENGTH / RING_COUNT)),
+        scale: 1 + Math.random() * 0.5,
+        rotationSpeed: (Math.random() - 0.5) * 2,
+        color: i % 3 === 0 ? '#4ecdc4' : i % 2 === 0 ? '#1a73e8' : '#ffffff'
+      });
     }
-    return () => {
-      if (actions && actions['Walking']) {
-        actions['Walking'].fadeOut(0.2);
-      }
-    };
-  }, [actions]);
+    return data;
+  }, []);
 
   useFrame((state, delta) => {
-    if (!group.current) return;
-    if (timeRef.current < duration) {
-      timeRef.current += delta;
-      const t = Math.min(timeRef.current / duration, 1);
-      
-      // Smooth easing (ease-out cubic)
-      const ease = 1 - Math.pow(1 - t, 3);
-      
-      // Move character from right to left
-      const currentX = startX - (startX - endX) * ease;
-      group.current.position.x = currentX;
-      
-      // Normalize progress 0 to 1 based on X position for DOM tracking
-      const rawProgress = (startX - currentX) / (startX - endX);
-      const normalizedProgress = Math.max(0, Math.min(1, rawProgress));
-      
-      onProgress(normalizedProgress);
-    }
+    if (!ringsRef.current) return;
+    ringsRef.current.children.forEach((child, i) => {
+      child.rotation.z += ringData[i].rotationSpeed * delta;
+    });
   });
 
   return (
-    <group ref={group}>
-      {/* Face the character to the left (moving direction) */}
-      <group rotation={[0, -Math.PI / 2, 0]} position={[0, -2, 0]} scale={0.8}>
-        <primitive object={scene} />
-      </group>
+    <group ref={ringsRef}>
+      {ringData.map((data, i) => (
+        <mesh key={i} position={[0, 0, data.z]} scale={data.scale}>
+          <torusGeometry args={[3, 0.1, 16, 64]} />
+          <meshStandardMaterial 
+            color={data.color} 
+            emissive={data.color} 
+            emissiveIntensity={2} 
+            wireframe={i % 4 === 0} 
+          />
+        </mesh>
+      ))}
     </group>
   );
 };
 
-export default function Animation() {
-  const [progress, setProgress] = useState(0);
-  const [isDone, setIsDone] = useState(false);
+const CameraFlythrough = ({ onComplete }: { onComplete: () => void }) => {
+  const speed = useRef(0);
+  
+  useFrame((state, delta) => {
+    // Exponentially increase camera speed
+    speed.current += delta * 15;
+    state.camera.position.z -= speed.current * delta;
 
-  useEffect(() => {
-    if (progress >= 0.99) {
-      const timer = setTimeout(() => setIsDone(true), 400);
-      return () => clearTimeout(timer);
+    // Add some turbulence to the camera
+    state.camera.position.x = Math.sin(state.clock.elapsedTime * 5) * 0.2;
+    state.camera.position.y = Math.cos(state.clock.elapsedTime * 4) * 0.2;
+
+    // When the camera reaches the end of the tunnel, trigger completion
+    if (state.camera.position.z < -TUNNEL_LENGTH - 5) {
+      onComplete();
     }
-  }, [progress]);
+  });
+  
+  return null;
+};
 
-  if (isDone) return null;
+export default function Animation() {
+  const [isDone, setIsDone] = useState(false);
+  const [flash, setFlash] = useState(false);
 
-  const translateXValue = `translate3d(-${progress * 100}%, 0, 0)`;
+  const handleComplete = () => {
+    if (!flash) {
+      setFlash(true);
+      setTimeout(() => setIsDone(true), 400);
+    }
+  };
 
   return (
-    <div className="fixed inset-0 z-[10000] pointer-events-none overflow-hidden">
-      {/* The Solid Black OLED Overlay */}
-      <div 
-        className="absolute inset-0 bg-[#050505] z-40 will-change-transform"
-        style={{ transform: translateXValue }}
-      >
-        {/* Glow Leak at the Peel Edge to sell the OLED effect */}
-        <div className="absolute top-0 bottom-0 right-0 w-[80px] bg-gradient-to-l from-[#1a73e8] to-transparent opacity-60 mix-blend-screen translate-x-full" />
-        <div 
-          className="absolute top-0 bottom-0 right-0 w-[4px] bg-[#ffffff] opacity-90 blur-[2px] translate-x-full"
-          style={{ boxShadow: '0 0 20px 5px rgba(26, 115, 232, 0.9)' }}
-        />
-      </div>
+    <AnimatePresence>
+      {!isDone && (
+        <motion.div 
+          className="fixed inset-0 z-[10000] bg-[#020202] flex items-center justify-center pointer-events-none overflow-hidden"
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.6 }}
+        >
+          {/* Warp Speed Streaks (HTML overlay for extra effect) */}
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-transparent via-[#050505]/50 to-[#000000] z-10" />
 
-      {/* The 3D Scene running on top */}
-      <div className="absolute inset-0 z-50">
-        <Canvas camera={{ position: [0, 0, 8], fov: 45 }} dpr={[1, 2]}>
-          <ambientLight intensity={1.5} />
-          <directionalLight position={[5, 10, 5]} intensity={3} color="#ffffff" />
-          <directionalLight position={[-5, 5, -5]} intensity={1} color="#8ab4f8" />
-          {/* We wrap the character in React.Suspense so the app doesn't crash while downloading the GLB */}
-          <React.Suspense fallback={null}>
-            <RobotCharacter onProgress={setProgress} />
-          </React.Suspense>
-        </Canvas>
-      </div>
-    </div>
+          {/* Flash overlay at the very end */}
+          <motion.div 
+            className="absolute inset-0 bg-white z-[10001]"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: flash ? 1 : 0 }}
+            transition={{ duration: 0.2 }}
+          />
+
+          <Canvas camera={{ position: [0, 0, 5], fov: 75 }}>
+            <ambientLight intensity={0.5} />
+            <pointLight position={[0, 0, 0]} intensity={2} color="#ffffff" distance={20} />
+            
+            {/* The infinite rings */}
+            <Rings />
+
+            {/* The camera controller */}
+            <CameraFlythrough onComplete={handleComplete} />
+            
+            {/* Fog to hide the back of the tunnel */}
+            <fog attach="fog" args={['#020202', 10, 60]} />
+          </Canvas>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

@@ -67,18 +67,23 @@ export default function DropzoneArea() {
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.95 }}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          transition={{ type: "spring", stiffness: 400, damping: 25 }}
         >
           <div
             {...getRootProps()}
-            className={`glass border-2 border-dashed rounded-3xl p-16 text-center cursor-pointer transition-colors ${
-              isDragActive ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/30 hover:bg-secondary/10'
+            className={`glass border-2 border-dashed rounded-3xl p-16 text-center cursor-pointer transition-all duration-300 ${
+              isDragActive ? 'border-primary bg-primary/10 shadow-[0_0_40px_rgba(26,115,232,0.15)]' : 'border-border hover:border-primary/50 hover:bg-secondary/20 hover:shadow-2xl hover:shadow-primary/5'
             }`}
           >
             <input {...getInputProps()} />
             <motion.div 
               className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-secondary flex items-center justify-center text-primary shadow-lg"
+              animate={{ y: isDragActive ? -10 : 0, scale: isDragActive ? 1.1 : 1 }}
+              transition={{ type: "spring", stiffness: 300, damping: 20 }}
             >
-              <UploadCloud size={40} />
+              <UploadCloud size={40} className={isDragActive ? "animate-pulse" : ""} />
             </motion.div>
             <h3 className="text-2xl font-bold mb-3">Drag & Drop your document</h3>
             <p className="text-muted-foreground mb-8">or click to browse from your computer</p>

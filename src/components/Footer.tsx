@@ -17,9 +17,14 @@ export default function Footer() {
           <span>Secure</span>
         </div>
       </div>
-      <p className="text-[13px] font-medium tracking-wide opacity-80">
-        © 2026 reImagine. All Rights Reserved.
-      </p>
+      <div className="flex flex-col items-center gap-2 mt-4">
+        <a href="mailto:pmjarusuraj@gmail.com" className="text-sm font-semibold hover:text-primary transition-colors">
+          Contact Us: pmjarusuraj@gmail.com
+        </a>
+        <p className="text-[13px] font-medium tracking-wide opacity-80">
+          © 2026 reImagine. All Rights Reserved.
+        </p>
+      </div>
     </footer>
   );
 }

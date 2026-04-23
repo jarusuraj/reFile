@@ -6,6 +6,7 @@ import { type Language, LANGUAGE_METADATA } from '../types';
 import { ArrowRightLeft, FileText, FileSpreadsheet, FileJson, X, FileCheck, Loader2, CheckCircle2, Languages, Download } from 'lucide-react';
 import { formatFileSize } from '../utils/formatters';
 import DropzoneArea from './DropzoneArea';
+import Companion2D from './Companion2D';
 
 const EXTENSION_ICONS: Record<string, any> = {
   pdf: FileText,
@@ -63,6 +64,7 @@ export default function TranslationWorkspace() {
 
   return (
     <main className="flex-1 max-w-4xl w-full mx-auto px-6 py-12 relative z-10 flex flex-col gap-8">
+      <Companion2D />
       {/* Language Selection */}
       <motion.section 
         initial={{ opacity: 0, y: 20 }}

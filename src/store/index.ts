@@ -29,8 +29,18 @@ export const useAppStore = create<AppState>((set) => ({
 
   setFile: (file) => set({ file, status: 'idle', translatedUrl: null, progress: 0 }),
   setStatus: (status) => set({ status }),
-  setSourceLang: (sourceLang) => set({ sourceLang }),
-  setTargetLang: (targetLang) => set({ targetLang }),
+  setSourceLang: (sourceLang) => set((state) => {
+    if (sourceLang === state.targetLang) {
+      return { sourceLang, targetLang: state.sourceLang };
+    }
+    return { sourceLang };
+  }),
+  setTargetLang: (targetLang) => set((state) => {
+    if (targetLang === state.sourceLang) {
+      return { targetLang, sourceLang: state.targetLang };
+    }
+    return { targetLang };
+  }),
   swapLanguages: () => set((state) => ({ 
     sourceLang: state.targetLang, 
     targetLang: state.sourceLang 
