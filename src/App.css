@@ -2,6 +2,101 @@
    APP STYLES — reImagine File Translator
    ═══════════════════════════════════════════ */
 
+/* ═══════════════════════════════════════════
+   SPLASH SCREEN
+   ═══════════════════════════════════════════ */
+.splash {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-0);
+  overflow: hidden;
+}
+
+.splash__rings {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.splash__ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid var(--accent);
+}
+.splash__ring--1 { width: 200px; height: 200px; }
+.splash__ring--2 { width: 350px; height: 350px; }
+.splash__ring--3 { width: 520px; height: 520px; }
+
+.splash__center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  z-index: 1;
+}
+
+.splash__logo-wrap {
+  width: 80px;
+  height: 80px;
+  display: grid;
+  place-items: center;
+  background: var(--accent-dim);
+  border: 1px solid var(--accent-glow);
+  border-radius: var(--r-xl);
+  box-shadow: 0 0 60px var(--accent-glow);
+}
+.splash__logo-icon {
+  color: var(--accent);
+  display: flex;
+}
+
+.splash__title {
+  font-family: var(--f-display);
+  font-size: 2.4rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+.splash__title span {
+  background: linear-gradient(135deg, var(--accent), var(--blue));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.splash__subtitle {
+  font-size: 0.9rem;
+  color: var(--text-3);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-top: -8px;
+}
+
+.splash__loader {
+  width: 160px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--bg-3);
+  overflow: hidden;
+  margin-top: 8px;
+}
+.splash__loader-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--accent), var(--blue));
+}
+
+.splash__tagline {
+  font-size: 0.72rem;
+  color: var(--text-3);
+  letter-spacing: 0.04em;
+  margin-top: 4px;
+}
+
 /* ── Shell ── */
 .shell {
   position: relative;
