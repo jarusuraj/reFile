@@ -1,455 +1,403 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { motion, AnimatePresence, type Variants, useMotionValue, useTransform } from 'framer-motion';
-import {
-  Upload, X, ArrowUpDown, Download, RefreshCw, Globe,
-  FileText, Table, FileSpreadsheet, CheckCircle2,
-  AlertCircle, Languages, Sparkles, LayoutGrid, File,
-  Sun, Moon
+import { useCallback, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { useDropzone } from 'react-dropzone';
+import { toast } from 'sonner';
+import { useAppStore } from './store';
+import { 
+  FileText, UploadCloud, ArrowRightLeft, Languages, 
+  Download, Loader2, CheckCircle2, FileJson, 
+  FileSpreadsheet, X, FileCheck, Zap, Shield
 } from 'lucide-react';
-import './App.css';
+import { type SupportedExt, MAX_FILE_SIZE, type Language, LANGUAGE_METADATA } from './types';
+import { getFileExtension, formatFileSize } from './utils/formatters';
 
-/* ═══════════════════════ Types ═══════════════════════ */
-type Language = 'English' | 'Nepali' | 'Tamang';
-type AppStatus = 'idle' | 'translating' | 'done' | 'error';
-type SupportedExt = 'pdf' | 'docx' | 'csv' | 'tsv';
-type Theme = 'dark' | 'light';
-interface UploadedFile { raw: File; name: string; size: number; ext: SupportedExt; }
-
-/* ═══════════════════════ Constants ═══════════════════════ */
-const SUPPORTED: SupportedExt[] = ['pdf', 'docx', 'csv', 'tsv'];
-const MAX_SIZE = 1024 * 1024;
-const LANG_META: Record<Language, { flag: string }> = {
-  English: { flag: '🇬🇧' }, Nepali: { flag: '🇳🇵' }, Tamang: { flag: '🏔️' },
-};
-const EXT_META: Record<SupportedExt, { Icon: typeof FileText; label: string; color: string; bg: string }> = {
-  pdf:  { Icon: FileText,        label: 'PDF Document',    color: '#fb7185', bg: 'rgba(251,113,133,0.12)' },
-  docx: { Icon: File,            label: 'Word Document',   color: '#60a5fa', bg: 'rgba(96,165,250,0.12)' },
-  csv:  { Icon: Table,           label: 'CSV Spreadsheet', color: '#34d399', bg: 'rgba(52,211,153,0.12)' },
-  tsv:  { Icon: FileSpreadsheet, label: 'TSV Data File',   color: '#fbbf24', bg: 'rgba(251,191,36,0.12)' },
+const EXTENSION_ICONS: Record<SupportedExt, typeof FileText> = {
+  pdf: FileText,
+  docx: FileText,
+  csv: FileSpreadsheet,
+  tsv: FileJson,
 };
 
-/* ═══════════════════════ Animations ═══════════════════════ */
-const stagger: Variants = { hidden: {}, show: { transition: { staggerChildren: 0.08, delayChildren: 0.15 } } };
-const fadeUp: Variants = {
-  hidden: { opacity: 0, y: 28, filter: 'blur(6px)' },
-  show:   { opacity: 1, y: 0, filter: 'blur(0px)', transition: { type: 'spring', stiffness: 260, damping: 28 } },
-};
-const scaleIn: Variants = {
-  hidden: { opacity: 0, scale: 0.8 },
-  show:   { opacity: 1, scale: 1, transition: { type: 'spring', stiffness: 400, damping: 22 } },
-};
-const slideX: Variants = {
-  hidden: { opacity: 0, x: -24 },
-  show:   { opacity: 1, x: 0, transition: { type: 'spring', stiffness: 300, damping: 26 } },
-};
-
-/* ═══════════════════════ Helpers ═══════════════════════ */
-const fmtSize = (b: number) => b < 1024 ? `${b} B` : `${(b / 1024).toFixed(1)} KB`;
-const getExt = (n: string): SupportedExt | null => {
-  const e = n.split('.').pop()?.toLowerCase();
-  return SUPPORTED.includes(e as SupportedExt) ? (e as SupportedExt) : null;
-};
-
-/* ═══════════════════════ SPLASH SCREEN ═══════════════════════ */
-function SplashScreen({ onComplete }: { onComplete: () => void }) {
-  useEffect(() => {
-    const timer = setTimeout(onComplete, 2800);
-    return () => clearTimeout(timer);
-  }, [onComplete]);
-
-  return (
-    <motion.div
-      className="splash"
-      exit={{ opacity: 0, scale: 1.05 }}
-      transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-    >
-      {/* Animated background rings */}
-      <div className="splash__rings" aria-hidden="true">
-        {[1, 2, 3].map(i => (
-          <motion.div
-            key={i}
-            className={`splash__ring splash__ring--${i}`}
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: [0, 0.15, 0] }}
-            transition={{ duration: 2.5, delay: i * 0.3, ease: 'easeOut' }}
-          />
-        ))}
-      </div>
-
-      {/* Logo animation */}
-      <div className="splash__center">
-        <motion.div
-          className="splash__logo-wrap"
-          initial={{ scale: 0, rotate: -180 }}
-          animate={{ scale: 1, rotate: 0 }}
-          transition={{ type: 'spring', stiffness: 200, damping: 15, delay: 0.2 }}
-        >
-          <div className="splash__logo-icon">
-            <Languages size={36} />
-          </div>
-        </motion.div>
-
-        <motion.h1
-          className="splash__title"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-        >
-          re<span>Imagine</span>
-        </motion.h1>
-
-        <motion.p
-          className="splash__subtitle"
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.85, duration: 0.5 }}
-        >
-          File Translator
-        </motion.p>
-
-        {/* Loading bar */}
-        <motion.div
-          className="splash__loader"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1.2 }}
-        >
-          <motion.div
-            className="splash__loader-fill"
-            initial={{ width: '0%' }}
-            animate={{ width: '100%' }}
-            transition={{ delay: 1.3, duration: 1.3, ease: [0.16, 1, 0.3, 1] }}
-          />
-        </motion.div>
-
-        <motion.p
-          className="splash__tagline"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 0.5 }}
-          transition={{ delay: 1.5 }}
-        >
-          Bridging English · Nepali · Tamang
-        </motion.p>
-      </div>
-    </motion.div>
-  );
-}
-
-/* ═══════════════════════ PARTICLES ═══════════════════════ */
-function Particles() {
-  return (
-    <div className="particles" aria-hidden="true">
-      {Array.from({ length: 25 }).map((_, i) => (
-        <div
-          key={i}
-          className="particle"
-          style={{
-            '--x': `${Math.random() * 100}%`,
-            '--y': `${Math.random() * 100}%`,
-            '--size': `${2 + Math.random() * 2}px`,
-            '--dur': `${18 + Math.random() * 20}s`,
-            '--delay': `${-Math.random() * 20}s`,
-            '--drift': `${-40 + Math.random() * 80}px`,
-            opacity: 0.12 + Math.random() * 0.18,
-          } as React.CSSProperties}
-        />
-      ))}
-    </div>
-  );
-}
-
-/* ═══════════════════════ MAIN APP ═══════════════════════ */
 export default function App() {
-  const [ready, setReady] = useState(false);
-  const [file, setFile] = useState<UploadedFile | null>(null);
-  const [status, setStatus] = useState<AppStatus>('idle');
-  const [err, setErr] = useState('');
-  const [progress, setProgress] = useState(0);
-  const [sourceLang, setSourceLang] = useState<Language>('English');
-  const [targetLang, setTargetLang] = useState<Language>('Nepali');
-  const [dragging, setDragging] = useState(false);
-  const [blobUrl, setBlobUrl] = useState<string | null>(null);
-  const [theme, setTheme] = useState<Theme>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('reimagine-theme') as Theme | null;
-      if (saved) return saved;
-      return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  const {
+    file, status, sourceLang, targetLang, progress,
+    setFile, setStatus, setSourceLang, setTargetLang, swapLanguages,
+    setProgress, setTranslatedUrl, reset
+  } = useAppStore();
+
+  const progressInterval = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    // Clean up interval on unmount
+    return () => {
+      if (progressInterval.current) clearInterval(progressInterval.current);
+    };
+  }, []);
+
+  const onDrop = useCallback((acceptedFiles: File[]) => {
+    if (acceptedFiles.length === 0) return;
+    const selectedFile = acceptedFiles[0];
+    
+    if (selectedFile.size > MAX_FILE_SIZE) {
+      toast.error('File size exceeds the 1MB limit.');
+      return;
     }
-    return 'dark';
+
+    const ext = getFileExtension(selectedFile.name);
+    if (!ext) {
+      toast.error('Unsupported format. Please use PDF, DOCX, CSV, or TSV.');
+      return;
+    }
+
+    setFile({
+      raw: selectedFile,
+      name: selectedFile.name,
+      size: selectedFile.size,
+      ext
+    });
+    toast.success('File ready for translation.');
+  }, [setFile]);
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      'application/pdf': ['.pdf'],
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+      'text/csv': ['.csv'],
+      'text/tab-separated-values': ['.tsv']
+    },
+    maxFiles: 1,
+    multiple: false
   });
 
-  const inputRef = useRef<HTMLInputElement>(null);
-  const timerRef = useRef<ReturnType<typeof setInterval>>();
-  const mouseX = useMotionValue(0);
-  const mouseY = useMotionValue(0);
-  const glowX = useTransform(mouseX, v => `${v}px`);
-  const glowY = useTransform(mouseY, v => `${v}px`);
+  const handleTranslate = async () => {
+    if (!file) {
+      toast.error('Please upload a file first.');
+      return;
+    }
 
-  useEffect(() => {
-    const move = (e: MouseEvent) => { mouseX.set(e.clientX); mouseY.set(e.clientY); };
-    window.addEventListener('mousemove', move);
-    return () => window.removeEventListener('mousemove', move);
-  }, [mouseX, mouseY]);
+    setStatus('translating');
+    setProgress(0);
+    
+    // Simulate translation progress
+    progressInterval.current = setInterval(() => {
+      setProgress((prev) => {
+        if (prev >= 95) return prev;
+        return prev + Math.random() * 15;
+      });
+    }, 400);
 
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('reimagine-theme', theme);
-  }, [theme]);
-
-  useEffect(() => () => { if (blobUrl) URL.revokeObjectURL(blobUrl); }, [blobUrl]);
-
-  const toggleTheme = () => setTheme(t => t === 'dark' ? 'light' : 'dark');
-
-  const pick = useCallback((f: File) => {
-    setErr('');
-    const ext = getExt(f.name);
-    if (!ext) { setErr(`Unsupported format. Accepted: ${SUPPORTED.map(e => `.${e}`).join(', ')}`); return; }
-    if (f.size > MAX_SIZE) { setErr('File exceeds the 1 MB size limit.'); return; }
-    setFile({ raw: f, name: f.name, size: f.size, ext });
-    setStatus('idle');
-    if (blobUrl) URL.revokeObjectURL(blobUrl);
-    setBlobUrl(null);
-  }, [blobUrl]);
-
-  const swap = () => { setSourceLang(targetLang); setTargetLang(sourceLang); };
-
-  const translate = async () => {
-    if (!file) return;
-    setStatus('translating'); setProgress(0); setErr('');
-    timerRef.current = setInterval(() => setProgress(p => p >= 96 ? p : p + Math.random() * 5), 200);
     try {
-      // TODO: Wire TMT API — key will be provided by user
-      await new Promise(r => setTimeout(r, 4200));
-      clearInterval(timerRef.current);
+      // TODO: Replace with actual TMT API call
+      await new Promise((resolve) => setTimeout(resolve, 3500));
+      
+      if (progressInterval.current) clearInterval(progressInterval.current);
       setProgress(100);
+      
       const blob = new Blob(
-        [`[Translated]\n${file.name}\n${sourceLang} → ${targetLang}\n\nPlaceholder output — connect TMT API for production.`],
-        { type: 'text/plain' }
+        [`{"status":"success","message":"Translated content placeholder for ${file.name}"}`],
+        { type: 'application/json' }
       );
-      setBlobUrl(URL.createObjectURL(blob));
-      setTimeout(() => setStatus('done'), 500);
+      setTranslatedUrl(URL.createObjectURL(blob));
+      
+      toast.success('Translation completed successfully!');
+      setTimeout(() => setStatus('done'), 400);
     } catch {
-      clearInterval(timerRef.current);
-      setStatus('error'); setErr('Translation failed. Check your connection.');
+      if (progressInterval.current) clearInterval(progressInterval.current);
+      setStatus('error');
+      toast.error('Translation failed. Please try again.');
     }
   };
 
-  const reset = () => {
-    setFile(null); setStatus('idle'); setErr(''); setProgress(0);
-    if (blobUrl) URL.revokeObjectURL(blobUrl); setBlobUrl(null);
-    if (inputRef.current) inputRef.current.value = '';
-    clearInterval(timerRef.current);
+  const clearFile = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    reset();
   };
 
-  const meta = file ? EXT_META[file.ext] : null;
-  const progLabel = progress < 25 ? 'Parsing document structure…'
-    : progress < 55 ? 'Translating content via TMT API…'
-    : progress < 85 ? 'Reconstructing original layout…'
-    : 'Finalizing translated file…';
+  const FileIcon = file ? EXTENSION_ICONS[file.ext] : FileText;
 
   return (
-    <>
-      {/* Splash Screen */}
-      <AnimatePresence>
-        {!ready && <SplashScreen onComplete={() => setReady(true)} />}
-      </AnimatePresence>
+    <div className="min-h-screen dark bg-background text-foreground flex flex-col font-sans">
+      {/* Background ambient light */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
+        <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-primary/10 blur-[120px]" />
+        <div className="absolute bottom-[-20%] right-[-10%] w-[40%] h-[40%] rounded-full bg-blue-500/10 blur-[120px]" />
+      </div>
 
-      {/* Main App */}
-      {ready && (
-        <div className="shell">
-          <Particles />
-          <div className="ambient" aria-hidden="true">
-            <div className="ambient__orb ambient__orb--1" />
-            <div className="ambient__orb ambient__orb--2" />
-            <div className="ambient__orb ambient__orb--3" />
+      <header className="sticky top-0 z-50 glass border-b border-border/50 px-6 py-4">
+        <div className="max-w-6xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
+              <Languages size={22} />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold tracking-tight">reImagine</h1>
+              <p className="text-xs text-muted-foreground uppercase font-semibold tracking-wider">File Translator</p>
+            </div>
           </div>
-          <motion.div className="cursor-glow" style={{ left: glowX, top: glowY }} aria-hidden="true" />
+          <div className="hidden sm:flex items-center gap-3">
+            <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold border border-primary/20">Track 02</span>
+            <span className="px-3 py-1 rounded-full bg-secondary text-secondary-foreground text-xs font-semibold">TMT 2026</span>
+          </div>
+        </div>
+      </header>
 
-          {/* Header */}
-          <motion.header className="hdr" initial={{ opacity: 0, y: -24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: [0.16,1,0.3,1] }}>
-            <div className="hdr__brand">
-              <motion.div className="hdr__logo" whileHover={{ rotate: 12, scale: 1.08 }} transition={{ type: 'spring', stiffness: 400 }}>
-                <Languages size={24} />
-              </motion.div>
-              <div>
-                <h1 className="hdr__name">re<span>Imagine</span></h1>
-                <p className="hdr__sub">File Translator</p>
+      <main className="flex-1 max-w-4xl w-full mx-auto px-6 py-12 relative z-10 flex flex-col gap-8">
+        
+        {/* Language Selection */}
+        <motion.section 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass rounded-2xl p-6"
+        >
+          <div className="flex flex-col md:flex-row items-center gap-6">
+            <div className="flex-1 w-full">
+              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 block">Translate From</label>
+              <div className="flex p-1 rounded-xl bg-secondary/50 border border-border">
+                {(['English', 'Nepali', 'Tamang'] as Language[]).map(lang => (
+                  <button
+                    key={`source-${lang}`}
+                    onClick={() => setSourceLang(lang)}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                      sourceLang === lang ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    <span>{LANGUAGE_METADATA[lang].flag}</span>
+                    <span className="hidden sm:inline">{lang}</span>
+                  </button>
+                ))}
               </div>
             </div>
-            <div className="hdr__right">
-              <span className="tag tag--accent">Track 02</span>
-              <span className="tag">TMT 2026</span>
-              <motion.button className="theme-toggle" onClick={toggleTheme} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9, rotate: 180 }} transition={{ type: 'spring', stiffness: 400 }} aria-label="Toggle theme">
-                <AnimatePresence mode="wait">
-                  {theme === 'dark' ? (
-                    <motion.div key="sun" initial={{ rotate: -90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: 90, opacity: 0 }} transition={{ duration: 0.2 }}><Sun size={18} /></motion.div>
-                  ) : (
-                    <motion.div key="moon" initial={{ rotate: 90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: -90, opacity: 0 }} transition={{ duration: 0.2 }}><Moon size={18} /></motion.div>
-                  )}
-                </AnimatePresence>
-              </motion.button>
+
+            <motion.button 
+              onClick={swapLanguages}
+              whileHover={{ rotate: 180, scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              className="mt-6 w-10 h-10 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground border border-border shrink-0"
+            >
+              <ArrowRightLeft size={16} />
+            </motion.button>
+
+            <div className="flex-1 w-full">
+              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 block">Translate To</label>
+              <div className="flex p-1 rounded-xl bg-secondary/50 border border-border">
+                {(['English', 'Nepali', 'Tamang'] as Language[]).map(lang => (
+                  <button
+                    key={`target-${lang}`}
+                    onClick={() => setTargetLang(lang)}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                      targetLang === lang ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    <span>{LANGUAGE_METADATA[lang].flag}</span>
+                    <span className="hidden sm:inline">{lang}</span>
+                  </button>
+                ))}
+              </div>
             </div>
-          </motion.header>
+          </div>
+        </motion.section>
 
-          {/* Content */}
-          <motion.main className="content" variants={stagger} initial="hidden" animate="show">
-            {/* Language selector */}
-            <motion.section className="langbar" variants={fadeUp}>
-              <LangGroup label="Source" langs={(['English','Nepali','Tamang'] as Language[])} active={sourceLang} onChange={setSourceLang} />
-              <motion.button className="langbar__swap" onClick={swap} whileHover={{ rotate: 180, scale: 1.15 }} whileTap={{ scale: 0.85 }} transition={{ type: 'spring', stiffness: 300 }} aria-label="Swap">
-                <ArrowUpDown size={18} />
-              </motion.button>
-              <LangGroup label="Target" langs={(['English','Nepali','Tamang'] as Language[])} active={targetLang} onChange={setTargetLang} />
-            </motion.section>
-
-            {/* File upload */}
-            <motion.section className="upload" variants={fadeUp}>
-              <AnimatePresence mode="wait">
-                {!file ? (
-                  <motion.div key="drop" className={`dropzone ${dragging ? 'dropzone--drag' : ''}`}
-                    onClick={() => inputRef.current?.click()}
-                    onDragOver={e => { e.preventDefault(); setDragging(true); }}
-                    onDragLeave={() => setDragging(false)}
-                    onDrop={e => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files?.[0]; if (f) pick(f); }}
-                    role="button" tabIndex={0}
-                    initial={{ opacity: 0, scale: 0.94 }} animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.94 }} transition={{ type: 'spring', stiffness: 280, damping: 26 }}>
-                    <input ref={inputRef} type="file" accept=".pdf,.docx,.csv,.tsv" onChange={e => { const f = e.target.files?.[0]; if (f) pick(f); }} hidden />
-                    <motion.div className="dropzone__icon" animate={{ y: [0, -10, 0] }} transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}>
-                      <Upload size={36} strokeWidth={1.5} />
-                    </motion.div>
-                    <h3 className="dropzone__title">Drop your file here</h3>
-                    <p className="dropzone__sub">or click to browse your computer</p>
-                    <div className="dropzone__chips">
-                      {SUPPORTED.map(e => <span key={e} className="chip">.{e}</span>)}
-                      <span className="chip chip--muted">≤ 1 MB</span>
-                    </div>
-                  </motion.div>
-                ) : (
-                  <motion.div key="file" className="filecard"
-                    initial={{ opacity: 0, y: 24, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -20 }} transition={{ type: 'spring', stiffness: 320, damping: 28 }}>
-                    <motion.div className="filecard__icon" style={{ background: meta?.bg, color: meta?.color }}
-                      initial={{ scale: 0, rotate: -45 }} animate={{ scale: 1, rotate: 0 }}
-                      transition={{ type: 'spring', stiffness: 500, damping: 18, delay: 0.1 }}>
-                      {meta && <meta.Icon size={26} />}
-                    </motion.div>
-                    <div className="filecard__body">
-                      <h3>{file.name}</h3>
-                      <p>{meta?.label} · {fmtSize(file.size)}</p>
+        {/* Upload Zone */}
+        <motion.section 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+        >
+          <AnimatePresence mode="wait">
+            {!file ? (
+              <motion.div
+                key="dropzone"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+              >
+                <div
+                  {...getRootProps()}
+                  className={`glass border-2 border-dashed rounded-3xl p-12 text-center cursor-pointer transition-colors ${
+                    isDragActive ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50 hover:bg-secondary/20'
+                  }`}
+                >
+                  <input {...getInputProps()} />
+                  <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-secondary flex items-center justify-center text-muted-foreground">
+                    <UploadCloud size={32} />
+                  </div>
+                  <h3 className="text-xl font-semibold mb-2">Drag & Drop your document here</h3>
+                  <p className="text-muted-foreground mb-6">or click to browse from your computer</p>
+                  <div className="flex items-center justify-center gap-2">
+                    {['.PDF', '.DOCX', '.CSV', '.TSV'].map(ext => (
+                      <span key={ext} className="px-3 py-1 rounded-full bg-secondary text-xs font-mono font-medium">{ext}</span>
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="filecard"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="glass rounded-3xl p-6 flex flex-col md:flex-row items-center gap-6"
+              >
+                {/* Before Preview */}
+                <div className="flex-1 w-full bg-secondary/30 rounded-2xl p-6 border border-border">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-xl bg-background flex items-center justify-center shadow-sm text-primary">
+                        <FileIcon size={24} />
+                      </div>
+                      <div className="text-left overflow-hidden">
+                        <h4 className="font-semibold truncate max-w-[200px]">{file.name}</h4>
+                        <p className="text-xs text-muted-foreground">{formatFileSize(file.size)} • {sourceLang}</p>
+                      </div>
                     </div>
                     {status === 'idle' && (
-                      <motion.button className="filecard__rm" onClick={reset} whileHover={{ scale: 1.15, backgroundColor: 'rgba(251,113,133,0.15)' }} whileTap={{ scale: 0.85 }}><X size={18} /></motion.button>
+                      <button onClick={clearFile} className="p-2 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors">
+                        <X size={18} />
+                      </button>
                     )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-              <AnimatePresence>
-                {err && (
-                  <motion.div className="errbar" initial={{ opacity: 0, height: 0, marginTop: 0 }} animate={{ opacity: 1, height: 'auto', marginTop: 10 }} exit={{ opacity: 0, height: 0, marginTop: 0 }}>
-                    <AlertCircle size={16} /> {err}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </motion.section>
-
-            {/* Action states */}
-            <motion.section className="actions" variants={fadeUp}>
-              <AnimatePresence mode="wait">
-                {status === 'idle' && file && (
-                  <motion.button key="go" className="btn-go" onClick={translate}
-                    initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
-                    whileHover={{ scale: 1.04, boxShadow: '0 16px 48px var(--accent-glow)' }} whileTap={{ scale: 0.96 }}
-                    transition={{ type: 'spring', stiffness: 400, damping: 24 }}>
-                    <Sparkles size={20} /> Translate to {targetLang}
-                  </motion.button>
-                )}
-                {status === 'translating' && (
-                  <motion.div key="prog" className="prog" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }}>
-                    <div className="prog__bar">
-                      <motion.div className="prog__fill" initial={{ width: 0 }} animate={{ width: `${Math.min(progress, 100)}%` }} transition={{ ease: 'easeOut', duration: 0.25 }} />
-                      <motion.div className="prog__shimmer" animate={{ x: ['-100%', '200%'] }} transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }} />
+                  </div>
+                  
+                  <div className="h-24 rounded-lg bg-background/50 border border-border/50 p-4 relative overflow-hidden">
+                    <div className="space-y-2 opacity-40">
+                      <div className="h-2 w-3/4 bg-foreground/20 rounded-full" />
+                      <div className="h-2 w-full bg-foreground/20 rounded-full" />
+                      <div className="h-2 w-5/6 bg-foreground/20 rounded-full" />
+                      <div className="h-2 w-1/2 bg-foreground/20 rounded-full" />
                     </div>
-                    <div className="prog__info">
-                      <motion.div className="prog__spin" animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}><RefreshCw size={15} /></motion.div>
-                      <span className="prog__label">{progLabel}</span>
-                      <span className="prog__pct">{Math.round(progress)}%</span>
+                  </div>
+                </div>
+
+                <div className="hidden md:flex flex-col items-center justify-center px-4 text-muted-foreground">
+                  <ArrowRightLeft size={24} className="opacity-50" />
+                </div>
+
+                {/* After Preview / Progress */}
+                <div className="flex-1 w-full bg-secondary/30 rounded-2xl p-6 border border-border relative overflow-hidden">
+                  <div className="flex items-start gap-4 mb-4">
+                    <div className="w-12 h-12 rounded-xl bg-background flex items-center justify-center shadow-sm text-muted-foreground">
+                      {status === 'done' ? <FileCheck size={24} className="text-emerald-500" /> : <FileIcon size={24} />}
                     </div>
-                  </motion.div>
-                )}
-                {status === 'done' && (
-                  <motion.div key="done" className="done" variants={scaleIn} initial="hidden" animate="show" exit={{ opacity: 0 }}>
-                    <motion.div className="done__check" initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 500, damping: 14, delay: 0.15 }}><CheckCircle2 size={30} /></motion.div>
-                    <div className="done__text">
-                      <h3>Translation Complete</h3>
-                      <p>{file?.ext.toUpperCase()} translated: {sourceLang} → {targetLang}</p>
+                    <div className="text-left">
+                      <h4 className="font-semibold">{status === 'done' ? `Translated_${file.name}` : 'Awaiting Translation...'}</h4>
+                      <p className="text-xs text-muted-foreground">Target: {targetLang}</p>
                     </div>
-                    <motion.div className="done__btns" variants={stagger} initial="hidden" animate="show">
-                      {blobUrl && (
-                        <motion.a href={blobUrl} download={`translated_${file?.name}`} className="btn-dl" variants={slideX} whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}>
-                          <Download size={18} /> Download File
-                        </motion.a>
-                      )}
-                      <motion.button className="btn-again" onClick={reset} variants={slideX} whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}>
-                        <RefreshCw size={15} /> Translate Another
-                      </motion.button>
-                    </motion.div>
-                  </motion.div>
-                )}
-                {status === 'error' && (
-                  <motion.div key="err" className="err-action" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                    <motion.button className="btn-go" onClick={translate} whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}><RefreshCw size={18} /> Retry</motion.button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </motion.section>
+                  </div>
 
-            {/* Features */}
-            <motion.section className="feats" variants={stagger}>
-              {([
-                { Icon: LayoutGrid,      title: 'Layout Preservation', desc: 'Every image, table, header, and font stays exactly where it belongs — pixel-perfect reconstruction.', cls: 'f1' },
-                { Icon: Globe,           title: 'Trilingual Engine',   desc: 'Context-aware English ↔ Nepali ↔ Tamang translation powered by the Google TMT API.', cls: 'f2' },
-                { Icon: FileSpreadsheet, title: 'Multi-Format',        desc: 'Specialized parsers handle PDF, DOCX, CSV, and TSV with format-specific reconstruction logic.', cls: 'f3' },
-              ] as const).map(({ Icon, title, desc, cls }) => (
-                <motion.div key={cls} className={`feat feat--${cls}`} variants={fadeUp}
-                  whileHover={{ y: -5, boxShadow: 'var(--shadow-lg)' }} transition={{ type: 'spring', stiffness: 300, damping: 20 }}>
-                  <div className="feat__icon"><Icon size={22} /></div>
-                  <h4>{title}</h4>
-                  <p>{desc}</p>
-                </motion.div>
-              ))}
-            </motion.section>
-          </motion.main>
+                  <div className="h-24 rounded-lg bg-background/50 border border-border/50 p-4 flex flex-col justify-center relative">
+                    {status === 'idle' && (
+                      <div className="text-center text-sm text-muted-foreground">
+                        Ready to translate to {targetLang}
+                      </div>
+                    )}
 
-          <motion.footer className="ftr" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.9 }}>
-            <p>Information and Language Processing Lab · Kathmandu University, Dhulikhel</p>
-            <p className="ftr__sub">Google Trilingual Machine Translation Hackathon 2026</p>
-          </motion.footer>
-        </div>
-      )}
-    </>
-  );
-}
+                    {status === 'translating' && (
+                      <div className="w-full space-y-3">
+                        <div className="flex justify-between text-xs font-medium">
+                          <span className="text-primary flex items-center gap-2">
+                            <Loader2 size={12} className="animate-spin" />
+                            Processing...
+                          </span>
+                          <span>{Math.round(progress)}%</span>
+                        </div>
+                        <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
+                          <motion.div 
+                            className="h-full bg-primary"
+                            initial={{ width: 0 }}
+                            animate={{ width: `${progress}%` }}
+                            transition={{ ease: "easeOut" }}
+                          />
+                        </div>
+                      </div>
+                    )}
 
-/* ═══════════════════════ Language Pill Group ═══════════════════════ */
-function LangGroup({ label, langs, active, onChange }: {
-  label: string; langs: Language[]; active: Language; onChange: (l: Language) => void;
-}) {
-  return (
-    <div className="langbar__group">
-      <span className="langbar__label">{label}</span>
-      <div className="langbar__pills">
-        {langs.map(lang => (
-          <motion.button key={lang} className={`pill ${active === lang ? 'pill--on' : ''}`}
-            onClick={() => onChange(lang)} whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }} layout>
-            <span className="pill__flag">{LANG_META[lang].flag}</span>
-            <span>{lang}</span>
-            {active === lang && (
-              <motion.div className="pill__bg" layoutId={`pill-${label}`} transition={{ type: 'spring', stiffness: 400, damping: 28 }} />
+                    {status === 'done' && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+                        <div className="flex items-center gap-2 text-emerald-500 font-medium">
+                          <CheckCircle2 size={18} />
+                          Translation Complete
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
             )}
-          </motion.button>
-        ))}
-      </div>
+          </AnimatePresence>
+        </motion.section>
+
+        {/* Actions */}
+        <motion.section 
+          className="flex justify-center"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.2 }}
+        >
+          <AnimatePresence mode="wait">
+            {status === 'idle' && file && (
+              <motion.button
+                key="btn-translate"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                onClick={handleTranslate}
+                className="group relative px-8 py-4 bg-primary text-primary-foreground font-semibold rounded-2xl shadow-lg hover:shadow-xl hover:shadow-primary/20 transition-all active:scale-[0.98] flex items-center gap-3 overflow-hidden"
+              >
+                <div className="absolute inset-0 w-full h-full bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <Languages size={20} />
+                Start Translation
+              </motion.button>
+            )}
+
+            {status === 'done' && (
+              <motion.div 
+                key="btn-done"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex flex-col sm:flex-row gap-4"
+              >
+                {useAppStore.getState().translatedUrl && (
+                  <a
+                    href={useAppStore.getState().translatedUrl!}
+                    download={`Translated_${file?.name}`}
+                    className="px-8 py-4 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-2xl shadow-lg hover:shadow-xl transition-all active:scale-[0.98] flex items-center justify-center gap-3"
+                  >
+                    <Download size={20} />
+                    Download File
+                  </a>
+                )}
+                <button
+                  onClick={reset}
+                  className="px-8 py-4 glass text-foreground font-semibold rounded-2xl hover:bg-secondary/50 transition-all active:scale-[0.98] flex items-center justify-center gap-3"
+                >
+                  Translate Another
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.section>
+
+      </main>
+      
+      <footer className="mt-auto py-10 flex flex-col items-center justify-center gap-4 text-[#8a929e]">
+        <div className="flex items-center gap-8 text-sm font-medium tracking-wide">
+          <div className="flex items-center gap-2">
+            <ArrowRightLeft size={16} className="opacity-70" />
+            <span>EN · NE · TA</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Zap size={16} className="opacity-70" />
+            <span>Real-time</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Shield size={16} className="opacity-70" />
+            <span>Secure</span>
+          </div>
+        </div>
+        <p className="text-[13px] font-medium tracking-wide opacity-80">
+          © 2026 reImagine. All Rights Reserved.
+        </p>
+      </footer>
     </div>
   );
 }
